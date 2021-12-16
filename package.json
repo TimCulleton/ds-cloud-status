@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "postinstall": "tsc -p ./",
+    "test": "jest --coverage"
   },
   "repository": {
     "type": "git",
