@@ -1,0 +1,2 @@
+# ignore jest file, will work on getting linter to work later for it
+jest.config.js
