@@ -1,6 +1,9 @@
 import { IncomingMessage } from "http";
 import https = require("https");
 import { parse } from "node-html-parser";
+import FormData = require("form-data");
+import { URL } from "url";
+import CloudTypes = require("./cloudTypes");
 
 // Get Ticket
 // const passport = "https://eu1-dsi-iam.3dexperience.3ds.com/3DPassport/login?action=get_auth_params";
@@ -8,7 +11,8 @@ import { parse } from "node-html-parser";
 
 // https://eu1-dsi-iam.3dexperience.3ds.com/3DPassport/login?service=https://eu2-supppd-realtime.3dexperience.3ds.com/react/
 
-// https://eu2-supppd-realtime.3dexperience.3ds.com/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search= 3dgeoscisurveycstt210913&count=100&offset=0&loading=true&scrollTop=0
+// https://eu2-supppd-realtime.3dexperience.3ds.com/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search=3dgeoscisurveycstt210913&count=100&offset=0&loading=true&scrollTop=0
+// https://eu2-supppd-realtime.3dexperience.3ds.com/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search=3dgeoscisurveycstt210913&count=100&offset=0
 
 export enum Service {
     Passport = "eu1-dsi-iam.3dexperience.3ds.com/3DPassport",
@@ -20,11 +24,18 @@ export interface RequestResponse {
     data?: string;
 }
 
-export function makeRequest(url: string, data?: any): Promise<RequestResponse>;
-export function makeRequest(options: https.RequestOptions, data?: any): Promise<RequestResponse>;
+export function makeRequest(url: string, data?: FormData): Promise<RequestResponse>;
+export function makeRequest(options: https.RequestOptions, data?: FormData): Promise<RequestResponse>;
 
-export function makeRequest(options: any, data?: any): Promise<RequestResponse> {
+export function makeRequest(options: any, data?: FormData): Promise<RequestResponse> {
     return new Promise<RequestResponse>((resolve, reject) => {
+        // Apply Form Data Headers
+        if (data && typeof options === "object") {
+            const originalHeaders = (options as https.RequestOptions).headers || {};
+            const headers = Object.assign(originalHeaders, data.getHeaders());
+            (options as https.RequestOptions).headers = headers;
+        }
+
         const req = https.request(options, (res) => {
             const responseData: RequestResponse = {
                 res,
@@ -48,10 +59,83 @@ export function makeRequest(options: any, data?: any): Promise<RequestResponse> 
         });
 
         if (data) {
-            req.write(data);
+            data.pipe(req);
         }
         req.end();
     });
+}
+
+export function isResponseLoginChallenge(response: IncomingMessage): boolean {
+    return response.statusCode === 302 && /\/cas\/login\?/.test(response.headers.location || "");
+}
+
+export async function performLoginFromChallenge(response: RequestResponse): Promise<string> {
+    if (response.res.headers.location) {
+        // const cookies: Record<string, Record<string, string>> = {};
+
+        const getLoginChallengeData = await makeRequest(response.res.headers.location);
+        const loginPage = parse(getLoginChallengeData.data as string);
+        const rawConfigData = loginPage.querySelector("#configData")?.rawText;
+        const configData: CloudTypes.LoginChallengeData = rawConfigData ? JSON.parse(rawConfigData) : {};
+        const loginFormData = new FormData();
+        loginFormData.append("username", "hq9");
+        loginFormData.append("password", "XXXX");
+        loginFormData.append("lt", configData.lt);
+
+        // Login
+        const loginUrl = new URL(configData.url);
+        const loginCookies = getLoginChallengeData.res.headers["set-cookie"]?.map((cookie) => cookie.split(";")[0]) || [];
+        // cookies[loginUrl.hostname] = loginCookies.reduce((acc, cookie) => {
+        //     acc[cookie] = cookie;
+        //     return acc;
+        // }, {} as Record<string, string>);
+
+        const loginResult = await makeRequest({
+            method: "POST",
+            hostname: loginUrl.hostname,
+            path: loginUrl.pathname + loginUrl.search,
+            headers: {
+                Cookie: loginCookies?.join(";") || "",
+            },
+        }, loginFormData);
+        console.info(`Status: ${loginResult.res.statusCode} Loc: ${loginResult.res.headers.location}`);
+
+        // Redirct back to original request
+        const requestUrl = new URL(loginResult.res.headers.location || "");
+        const requestCookie = loginResult.res.headers["set-cookie"]?.map((cookie) => cookie.split(";")[0]);
+        const requestResult = await makeRequest({
+            method: "GET",
+            hostname: requestUrl.hostname,
+            path: requestUrl.pathname + requestUrl.search,
+            headers: {
+                Cookie: requestCookie?.join(";"),
+            },
+        });
+        console.info(requestResult.data);
+
+        const finalUrl = new URL(requestResult.res.headers.location || "");
+        const finalCookies = requestResult.res.headers["set-cookie"]?.map((cookie) => cookie.split(";")[0]);
+        const finalRequest = await makeRequest({
+            method: "GET",
+            hostname: finalUrl.hostname,
+            path: finalUrl.pathname + finalUrl.search,
+            headers: {
+                Cookie: finalCookies?.join(";"),
+            },
+        });
+
+        const alerts = JSON.parse(finalRequest.data || "") as CloudTypes.AlertsByEquipmentData;
+        const names = alerts.equipment.map((item) => {
+            if (CloudTypes.isEquipmentVM(item)) {
+                return item.vmInstanceName;
+            }
+            return item.serviceDefinitionName;
+        });
+        console.info(names);
+
+        return finalRequest.data || "";
+    }
+    return undefined as any;
 }
 
 export function parseGetServiceStatus(content: string): Promise<string> {
@@ -70,57 +154,15 @@ export async function getServiceStatusV2(): Promise<string> {
     const options: https.RequestOptions = {
         method: "GET",
         hostname: "eu2-supppd-realtime.3dexperience.3ds.com",
-        path: "/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search=%203dgeoscisurveycstt210913&count=100&offset=0&loading=true&scrollTop=0",
+        path: "/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search=3dgeoscisurveycstt210913&count=100&offset=0",
     };
 
     const initialResponse = await makeRequest(options);
-    if (initialResponse.res.statusCode === 302 && initialResponse.res.headers.location) {
-        const challenge = await makeRequest(initialResponse.res.headers.location);
-        console.info(challenge.data);
-        return challenge.data || "";
+    if (isResponseLoginChallenge(initialResponse.res)) {
+        const challenge = await performLoginFromChallenge(initialResponse);
+        console.info(challenge);
+        return challenge || "";
     }
 
     return initialResponse.data || "";
-}
-
-export function getServiceStatus(): Promise<any> {
-    // const requestArgs = new URLSearchParams({
-    //     group: "PPD1R420",
-    //     search: "3dgeoscisurveycstt210913",
-    //     count: "100",
-    // });
-
-    const options: https.RequestOptions = {
-        method: "GET",
-        hostname: "eu2-supppd-realtime.3dexperience.3ds.com",
-        path: "/supervision/api/v4/alerting/alertsbyequipments?group=PPD1R420&search=%203dgeoscisurveycstt210913&count=100&offset=0&loading=true&scrollTop=0",
-    };
-
-    return new Promise<any>((resolve, reject) => {
-        const req = https.request(options, async (res) => {
-            console.info(`statusCode: ${res.statusCode}`);
-
-            // 302 - Need to login
-            if (res.statusCode === 302) {
-                console.info(`redirect: ${res.headers.location}`);
-            } else {
-                const buffer: string[] = [];
-                res.on("data", async (d) => {
-                    const rawResponse = d.toString();
-                    buffer.push(rawResponse);
-                });
-
-                res.on("end", () => {
-                    const data = buffer.join("");
-                    console.info(data);
-                    resolve(data);
-                });
-            }
-        });
-        req.on("error", (error) => {
-            reject(error);
-        });
-
-        req.end();
-    });
 }
