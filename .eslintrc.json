@@ -22,6 +22,10 @@
     ],
     "rules": {
         "linebreak-style": "off",
-        "@typescript-eslint/indent": ["warn", 4]
+        "@typescript-eslint/indent": ["warn", 4],
+        "@typescript-eslint/quotes": ["warn", "double", { "allowTemplateLiterals": true }],
+        "import/prefer-default-export": "off",
+        "max-len": "off",
+        "no-param-reassign": ["error", { "props": false }]
     }
 }
