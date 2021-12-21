@@ -8,11 +8,6 @@ export interface UserContext {
     username: string;
     password: string;
 }
-
-export interface LoginOptions extends UserContext {
-    lt: string;
-}
-
 export interface CloudClientV2Options {
     userContext: UserContext;
 }
@@ -44,7 +39,14 @@ export class CloudClientV2 {
         this.cookies = {};
     }
 
+    validateUserContext(): void {
+        if (!this.userContext.username || !this.userContext.password) {
+            throw new Error(`Invalid User Context`);
+        }
+    }
+
     async getAlertsByEquipmentsV4(options?: AlertsByEquipmentV4Options): Promise<CloudTypes.AlertsByEquipmentData> {
+        this.validateUserContext();
         const requestUrl = new URL(SupervisionService);
         requestUrl.pathname = "/supervision/api/v4/alerting/alertsbyequipments";
 
@@ -64,6 +66,7 @@ export class CloudClientV2 {
             requestUrl.searchParams.append("offset", options.offset.toString());
         }
 
+        // Attempt to make a request, first time will trigger authentication challenge
         let response = await httpsClient.makeRequest({
             method: "GET",
             hostname: requestUrl.hostname,
