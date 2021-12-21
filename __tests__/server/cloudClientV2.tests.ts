@@ -7,7 +7,7 @@ describe("Cloud Client V2 Tests", () => {
         cloudClient = new CloudClientV2({
             userContext: {
                 username: "hq9",
-                password: "XeroFuture2021",
+                password: "XXXX",
             },
         });
         const alertData = await cloudClient.getAlertsByEquipmentsV4({
