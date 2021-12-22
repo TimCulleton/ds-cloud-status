@@ -1,4 +1,4 @@
-import { CloudClientV2 } from "../../src/server/clients/cloudClientV2";
+import { CloudClientV2 } from "../../src/clients/cloudClientV2";
 
 describe("Cloud Client V2 Tests", () => {
     let cloudClient: CloudClientV2;
@@ -26,5 +26,9 @@ describe("Cloud Client V2 Tests", () => {
             offset: 0,
         });
         expect(alertData2).toBeTruthy();
+    });
+
+    it(`DDD`, () => {
+        expect(true).toBeTruthy();
     });
 });

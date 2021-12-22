@@ -1,7 +1,7 @@
 import { ClientRequest, IncomingMessage } from "http";
 import https = require("https");
 import FormData = require("form-data");
-import httpsClient = require("../../src/server/clients/httpsClient");
+import httpsClient = require("../../src/clients/httpsClient");
 
 describe("httpsClient Tests", () => {
     it(`Process Cookies - Response Containing Cookies`, () => {

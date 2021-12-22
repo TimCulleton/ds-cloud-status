@@ -108,4 +108,4 @@ dist
 **/*.d.ts
 **/*.js.map
 
-!/jest.config.js
+!jest.config.js
