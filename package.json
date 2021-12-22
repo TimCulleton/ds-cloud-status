@@ -6,7 +6,7 @@
   "scripts": {
     "preinstall": "npm run \"installServer\"",
     "postinstall": "tsc -p ./",
-    "test": "jest -coverage",
+    "test": "jest",
     "installServer": "npx concurrently \"cd server && npm i && tsc -p ./\""
   },
   "repository": {
