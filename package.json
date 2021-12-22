@@ -7,7 +7,7 @@
     "preinstall": "npm run \"installServer\"",
     "postinstall": "tsc -p ./",
     "test": "jest -coverage",
-    "installServer": "concurrently  \"cd server && npm i\""
+    "installServer": "concurrently  \"cd server && npm i && tsc -p ./\""
   },
   "repository": {
     "type": "git",
