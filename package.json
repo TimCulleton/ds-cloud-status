@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "preinstall": "npm run \"installServer\"",
     "postinstall": "tsc -p ./",
-    "test": "jest"
+    "test": "jest -coverage",
+    "installServer": "concurrently  \"cd server && npm i\""
   },
   "repository": {
     "type": "git",
@@ -21,6 +23,7 @@
     "@types/jest": "^27.0.3",
     "@typescript-eslint/eslint-plugin": "^5.7.0",
     "@typescript-eslint/parser": "^5.7.0",
+    "concurrently": "^6.5.1",
     "eslint": "^8.4.1",
     "eslint-config-airbnb": "^19.0.2",
     "eslint-config-airbnb-typescript": "^16.1.0",
