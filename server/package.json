@@ -1,0 +1,21 @@
+{
+  "name": "ds-cloud-status-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "jest.config.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.17.2",
+    "form-data": "^4.0.0",
+    "node-html-parser": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.13",
+    "@types/jest": "^27.0.3",
+    "@types/node": "^17.0.2"
+  }
+}
